@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+{% block title %}Internal Review — {{ submission.filename }}{% endblock %}
+
+{% block head %}
+<style>
+  .internal-wrap { max-width: 860px; margin: 0 auto; }
+
+  /* ── Status banner ── */
+  .status-banner {
+    display: flex; align-items: center; gap: 0.85rem;
+    padding: 0.9rem 1.1rem; border-radius: var(--radius);
+    border: 1px solid transparent; margin-bottom: 1.25rem;
+    font-size: 0.875rem; font-weight: 500;
+  }
+  .status-banner svg { flex-shrink: 0; width: 17px; height: 17px; }
+  .banner-pending  { background: #f1f5f9; border-color: #cbd5e1; color: #475569; }
+  .banner-approved { background: var(--green-bg); border-color: var(--green-border); color: #14532d; }
+  .banner-rejected { background: var(--red-bg);   border-color: var(--red-border);   color: #7f1d1d; }
+  .banner-changes  { background: var(--amber-bg); border-color: var(--amber-border); color: #78350f; }
+  .banner-text strong { font-weight: 700; }
+  .banner-text small  { display: block; font-size: 0.78rem; font-weight: 400; margin-top: 0.1rem; opacity: 0.75; }
+
+  /* ── Two-column layout ── */
+  .layout { display: grid; grid-template-columns: 1fr 290px; gap: 1.1rem; align-items: start; }
+  @media (max-width: 680px) { .layout { grid-template-columns: 1fr; } }
+
+  /* ── Preview card ── */
+  .preview-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 1px 3px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.05);
+    overflow: hidden;
+  }
+  .preview-body {
+    min-height: 320px; background: #f1f5f9;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .preview-body img   { max-width: 100%; max-height: 480px; object-fit: contain; display: block; }
+  .preview-body embed { display: block; }
+  .preview-body video { max-width: 100%; max-height: 440px; display: block; }
+  .no-preview {
+    display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+    color: var(--muted); padding: 3rem 2rem; text-align: center;
+  }
+  .no-preview svg   { width: 40px; height: 40px; opacity: 0.3; }
+  .no-preview small { font-size: 0.78rem; }
+  .preview-footer {
+    padding: 0.8rem 1.1rem; border-top: 1px solid var(--border);
+    display: flex; align-items: center; gap: 0.6rem;
+  }
+  .pf-name { font-size: 0.875rem; font-weight: 600; }
+  .pf-date { font-size: 0.78rem; color: var(--muted); margin-left: auto; }
+
+  /* ── Sidebar cards ── */
+  .sidebar { display: flex; flex-direction: column; gap: 1rem; }
+  .info-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 1px 3px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.05);
+    overflow: hidden;
+  }
+  .card-section { padding: 0.9rem 1.1rem; border-bottom: 1px solid var(--border); }
+  .card-section:last-child { border-bottom: none; }
+  .card-label {
+    font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--muted); margin-bottom: 0.4rem;
+  }
+  .card-value { font-size: 0.875rem; color: var(--text); word-break: break-word; }
+  .card-value a { color: var(--muted); font-size: 0.8rem; }
+
+  /* ── Review link ── */
+  .link-row { display: flex; gap: 0.4rem; margin-top: 0.35rem; }
+  .link-input {
+    flex: 1; padding: 0.42rem 0.6rem;
+    border: 1.5px solid var(--border); border-radius: 7px;
+    font-family: "SF Mono","Fira Code", monospace; font-size: 0.72rem;
+    background: var(--bg); color: var(--muted); outline: none;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .copy-btn {
+    padding: 0.42rem 0.75rem; border: 1.5px solid var(--border); border-radius: 7px;
+    background: var(--surface); font-family: inherit; font-size: 0.78rem; font-weight: 600;
+    color: var(--text); cursor: pointer; white-space: nowrap; transition: background 0.1s;
+  }
+  .copy-btn:hover { background: var(--bg); }
+
+  /* ── Feedback ── */
+  .feedback-text {
+    font-size: 0.875rem; color: #92400e; line-height: 1.55;
+    background: var(--amber-bg); border-left: 2.5px solid var(--amber);
+    padding: 0.55rem 0.8rem; border-radius: 0 7px 7px 0; margin-top: 0.25rem;
+  }
+  .ts-feedback-list { display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.35rem; }
+  .ts-fb-row { display: flex; align-items: flex-start; gap: 0.45rem; }
+  .ts-badge {
+    flex-shrink: 0; padding: 0.12rem 0.42rem; border-radius: 8px;
+    background: var(--amber); color: #fff;
+    font-size: 0.67rem; font-weight: 700; font-variant-numeric: tabular-nums;
+    white-space: nowrap; margin-top: 2px;
+  }
+  .ts-fb-text { font-size: 0.82rem; color: #92400e; line-height: 1.45; }
+  .no-feedback { font-size: 0.82rem; color: var(--muted); font-style: italic; margin-top: 0.25rem; }
+
+  /* ── Danger zone ── */
+  .btn-delete {
+    width: 100%; padding: 0.55rem;
+    background: none; border: 1.5px solid var(--red-border);
+    border-radius: 8px; color: var(--red);
+    font-family: inherit; font-size: 0.82rem; font-weight: 600;
+    cursor: pointer; transition: background 0.12s, color 0.12s;
+  }
+  .btn-delete:hover { background: var(--red); color: #fff; border-color: var(--red); }
+
+  /* ── Badge ── */
+  .badge {
+    display: inline-flex; align-items: center;
+    padding: 0.15rem 0.5rem; border-radius: 20px;
+    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em;
+    text-transform: uppercase; border: 1px solid transparent;
+  }
+  .badge-pending           { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+  .badge-approved          { background: var(--green-bg); color: var(--green); border-color: var(--green-border); }
+  .badge-rejected          { background: var(--red-bg);   color: var(--red);   border-color: var(--red-border); }
+  .badge-changes_requested { background: var(--amber-bg); color: var(--amber); border-color: var(--amber-border); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="internal-wrap">
+  <div class="page-header">
+    <h1 class="page-title">{{ submission.filename }}</h1>
+    <a href="{{ url_for('dashboard.dashboard') }}" class="btn btn-outline">← Dashboard</a>
+  </div>
+
+  {# ── Status banner ── #}
+  {% if submission.status == 'pending' %}
+    <div class="status-banner banner-pending">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+      </svg>
+      <div class="banner-text">
+        <strong>Awaiting client review</strong>
+        <small>The review link has been sent — no decision yet.</small>
+      </div>
+    </div>
+  {% elif submission.status == 'approved' %}
+    <div class="status-banner banner-approved">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+      <div class="banner-text">
+        <strong>Client approved this content</strong>
+        <small>No further action needed.</small>
+      </div>
+    </div>
+  {% elif submission.status == 'rejected' %}
+    <div class="status-banner banner-rejected">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+      <div class="banner-text">
+        <strong>Client rejected this submission</strong>
+        <small>{{ submission.client_comment or 'No reason given.' }}</small>
+      </div>
+    </div>
+  {% else %}
+    <div class="status-banner banner-changes">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.1"/>
+      </svg>
+      <div class="banner-text">
+        <strong>Changes requested</strong>
+        <small>The client has left feedback — see the sidebar.</small>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="layout">
+
+    {# ── Preview ── #}
+    <div class="preview-card">
+      <div class="preview-body">
+        {% if submission.watermarked_path %}
+          {% set src = url_for('serve_upload', filename=submission.watermarked_path) %}
+          {% if submission.file_type.startswith('image/') %}
+            <img src="{{ src }}" alt="{{ submission.filename }}" />
+          {% elif submission.file_type == 'application/pdf' %}
+            <embed src="{{ src }}" type="application/pdf" style="width:100%;height:480px;display:block;" />
+          {% elif submission.file_type.startswith('video/') %}
+            <video controls>
+              <source src="{{ src }}" type="{{ submission.file_type }}" />
+            </video>
+          {% else %}
+            <div class="no-preview">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+              <small>{{ submission.file_type }}</small>
+            </div>
+          {% endif %}
+        {% else %}
+          <div class="no-preview">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            <small>No preview available</small>
+          </div>
+        {% endif %}
+      </div>
+      <div class="preview-footer">
+        <span class="pf-name">{{ submission.filename }}</span>
+        <span class="badge badge-{{ submission.status }}">{{ submission.status | replace('_', ' ') }}</span>
+        <span class="pf-date">{{ submission.created_at.strftime('%b %d, %Y') }}</span>
+      </div>
+    </div>
+
+    {# ── Sidebar ── #}
+    <div class="sidebar">
+
+      {# Client info #}
+      <div class="info-card">
+        <div class="card-section">
+          <div class="card-label">Client</div>
+          <div class="card-value">
+            {{ submission.client.name if submission.client else '—' }}<br />
+            {% if submission.client %}
+              <a href="mailto:{{ submission.client.email }}">{{ submission.client.email }}</a>
+            {% endif %}
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-label">Submitted</div>
+          <div class="card-value">{{ submission.created_at.strftime('%b %d, %Y · %H:%M') }}</div>
+        </div>
+        {% if submission.team_note %}
+        <div class="card-section">
+          <div class="card-label">Team note</div>
+          <div class="card-value" style="white-space:pre-wrap">{{ submission.team_note }}</div>
+        </div>
+        {% endif %}
+      </div>
+
+      {# Review link #}
+      <div class="info-card">
+        <div class="card-section">
+          <div class="card-label">Client review link</div>
+          <div class="link-row">
+            <input id="review-url" class="link-input" type="text" value="{{ review_url }}" readonly />
+            <button class="copy-btn" id="copy-btn" onclick="copyLink()">Copy</button>
+          </div>
+        </div>
+      </div>
+
+      {# Feedback #}
+      <div class="info-card">
+        <div class="card-section">
+          <div class="card-label">Client feedback</div>
+          {% if submission.file_type.startswith('video/') and submission.video_comments %}
+            <div class="ts-feedback-list">
+              {% for vc in submission.video_comments | sort(attribute='timestamp_seconds') %}
+                <div class="ts-fb-row">
+                  <span class="ts-badge">{{ vc.timestamp_str }}</span>
+                  <span class="ts-fb-text">{{ vc.comment_text }}</span>
+                </div>
+              {% endfor %}
+            </div>
+          {% elif submission.client_comment %}
+            <div class="feedback-text">{{ submission.client_comment }}</div>
+          {% else %}
+            <p class="no-feedback">No feedback yet.</p>
+          {% endif %}
+        </div>
+      </div>
+
+      {# Social post status #}
+      {% if submission.social_targets %}
+      <div class="info-card">
+        <div class="card-section">
+          <div class="card-label">Social media</div>
+          {% if submission.social_posted %}
+            {% set results = submission.social_posted | tojson | safe %}
+            <div style="display:flex; flex-direction:column; gap:0.4rem; margin-top:0.25rem;">
+              {% for platform in submission.social_targets.split(',') %}
+                {% set r = (submission.social_posted | fromjson).get(platform, {}) %}
+                <div style="display:flex; align-items:center; gap:0.5rem; font-size:0.82rem;">
+                  {% if r.get('ok') %}
+                    <span style="color:var(--green); font-weight:700;">✓</span>
+                    <span style="font-weight:600; text-transform:capitalize;">{{ platform }}</span>
+                    {% if r.get('url') %}
+                      <a href="{{ r.url }}" target="_blank"
+                         style="color:var(--accent); font-size:0.75rem; margin-left:auto;">View →</a>
+                    {% endif %}
+                  {% else %}
+                    <span style="color:var(--red); font-weight:700;">✕</span>
+                    <span style="font-weight:600; text-transform:capitalize;">{{ platform }}</span>
+                    <span style="color:var(--muted); font-size:0.75rem; margin-left:auto;"
+                          title="{{ r.get('error','') }}">Failed</span>
+                  {% endif %}
+                </div>
+              {% endfor %}
+            </div>
+          {% elif submission.status == 'approved' %}
+            <p style="font-size:0.82rem; color:var(--muted); font-style:italic; margin-top:0.25rem;">
+              Pending — waiting for approval.
+            </p>
+          {% else %}
+            <p style="font-size:0.82rem; color:var(--muted); font-style:italic; margin-top:0.25rem;">
+              Will post to
+              <strong>{{ submission.social_targets.replace(',', ', ') }}</strong>
+              once approved.
+            </p>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+      {# Delete #}
+      <div class="info-card">
+        <div class="card-section">
+          <div class="card-label">Danger zone</div>
+          <form method="POST"
+                action="{{ url_for('review.delete_submission', token=submission.review_token) }}"
+                onsubmit="return confirm('Permanently delete this submission and its files? This cannot be undone.')">
+            <button type="submit" class="btn-delete">Delete submission</button>
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  function copyLink() {
+    var input = document.getElementById('review-url');
+    var btn   = document.getElementById('copy-btn');
+    navigator.clipboard.writeText(input.value).then(function() {
+      btn.textContent = 'Copied!';
+      setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+    });
+  }
+</script>
+{% endblock %}

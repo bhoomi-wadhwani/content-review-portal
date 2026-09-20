@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}Clients — Review Portal{% endblock %}
+
+{% block head %}
+<style>
+  .clients-layout {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 1.5rem;
+    align-items: start;
+  }
+  @media (max-width: 720px) { .clients-layout { grid-template-columns: 1fr; } }
+
+  /* ── Client table ── */
+  .table-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.06);
+    overflow: hidden;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    padding: 0.7rem 1.1rem; text-align: left;
+    font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--muted);
+    background: var(--bg); border-bottom: 1px solid var(--border);
+  }
+  tbody td {
+    padding: 0.85rem 1.1rem; font-size: 0.875rem;
+    border-bottom: 1px solid var(--border); vertical-align: middle;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: #f8fafc; }
+  .client-name  { font-weight: 700; color: var(--text); }
+  .client-email { font-size: 0.78rem; color: var(--muted); margin-top: 0.1rem; }
+  .stat-pill {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 22px; padding: 0.1rem 0.45rem;
+    border-radius: 20px; font-size: 0.68rem; font-weight: 700; border: 1px solid transparent;
+  }
+  .sp-pending  { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+  .sp-approved { background: var(--green-bg); color: var(--green); border-color: var(--green-border); }
+  .sp-rejected { background: var(--red-bg);   color: var(--red);   border-color: var(--red-border); }
+  .empty-state { text-align: center; padding: 3rem 1rem; color: var(--muted); font-size: 0.875rem; }
+
+  /* ── Add client card ── */
+  .add-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.06);
+    padding: 1.5rem;
+    position: sticky; top: 70px;
+  }
+  .add-card-title {
+    font-size: 0.9rem; font-weight: 700; color: var(--text);
+    margin-bottom: 1.25rem; letter-spacing: -0.01em;
+  }
+  .field { margin-bottom: 1rem; }
+  .add-btn {
+    width: 100%; padding: 0.62rem;
+    background: var(--accent); color: #fff;
+    border: none; border-radius: 8px;
+    font-family: inherit; font-size: 0.875rem; font-weight: 700;
+    cursor: pointer; transition: opacity 0.12s, box-shadow 0.12s;
+    margin-top: 0.25rem;
+  }
+  .add-btn:hover { opacity: 0.9; box-shadow: 0 4px 12px rgba(99,102,241,.3); }
+</style>
+{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <h1 class="page-title">Clients</h1>
+  </div>
+
+  {% if error %}
+    <div class="flash flash-error">{{ error }}</div>
+  {% endif %}
+
+  <div class="clients-layout">
+
+    {# ── Table ── #}
+    <div class="table-card">
+      <table>
+        <thead>
+          <tr>
+            <th>Client</th>
+            <th>Total</th>
+            <th>Pending</th>
+            <th>Approved</th>
+            <th>Rejected</th>
+            <th>Since</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if stats %}
+            {% for row in stats %}
+            <tr>
+              <td>
+                <a href="{{ url_for('clients.client_detail', client_id=row.client.id) }}"
+                   style="text-decoration:none;">
+                  <div class="client-name">{{ row.client.name }}</div>
+                  <div class="client-email">{{ row.client.email }}</div>
+                </a>
+              </td>
+              <td style="font-weight:600">{{ row.total }}</td>
+              <td>
+                {% if row.n_pending %}<span class="stat-pill sp-pending">{{ row.n_pending }}</span>
+                {% else %}<span style="color:#cbd5e1">—</span>{% endif %}
+              </td>
+              <td>
+                {% if row.n_approved %}<span class="stat-pill sp-approved">{{ row.n_approved }}</span>
+                {% else %}<span style="color:#cbd5e1">—</span>{% endif %}
+              </td>
+              <td>
+                {% if row.n_rejected %}<span class="stat-pill sp-rejected">{{ row.n_rejected }}</span>
+                {% else %}<span style="color:#cbd5e1">—</span>{% endif %}
+              </td>
+              <td style="color:var(--muted); font-size:0.78rem">
+                {{ row.client.created_at.strftime('%b %d, %Y') }}
+              </td>
+              <td>
+                <form method="POST"
+                      action="{{ url_for('clients.delete_client', client_id=row.client.id) }}"
+                      onsubmit="return confirm('Delete {{ row.client.name }}? This cannot be undone.')">
+                  <button type="submit" style="
+                    background:none; border:1.5px solid var(--red-border);
+                    border-radius:6px; color:var(--red); padding:0.22rem 0.6rem;
+                    font-family:inherit; font-size:0.75rem; font-weight:600; cursor:pointer;">
+                    Delete
+                  </button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="7" class="empty-state">No clients yet. Add one →</td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+
+    {# ── Add client ── #}
+    <div class="add-card">
+      <div class="add-card-title">Add a Client</div>
+      <form method="POST" action="{{ url_for('clients.add_client') }}">
+        <div class="field">
+          <label for="name">Name</label>
+          <input type="text" id="name" name="name" required placeholder="Acme Corp" />
+        </div>
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" required placeholder="client@example.com" />
+        </div>
+        <button type="submit" class="add-btn">Add Client</button>
+      </form>
+    </div>
+
+  </div>
+{% endblock %}

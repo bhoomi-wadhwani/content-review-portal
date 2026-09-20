@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Review — {{ submission.filename }}</title>
+  <style>
+    :root {
+      --bg:      #f8fafc;
+      --surface: #ffffff;
+      --border:  #e2e8f0;
+      --text:    #0f172a;
+      --muted:   #64748b;
+      --accent:        #6366f1;
+      --accent-bg:     #eef2ff;
+      --accent-border: #c7d2fe;
+      --green:   #10b981; --green-bg: #ecfdf5; --green-border: #a7f3d0;
+      --amber:   #f59e0b; --amber-bg: #fffbeb; --amber-border: #fde68a;
+      --red:     #ef4444; --red-bg:   #fef2f2; --red-border:   #fecaca;
+      --radius:  12px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; font-size: 15px; line-height: 1.5;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 0 2rem; height: 54px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 10;
+    }
+    .brand {
+      font-weight: 800; font-size: 0.88rem; letter-spacing: -0.02em;
+      color: var(--accent); display: flex; align-items: center; gap: 0.4rem;
+    }
+    .brand-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+    .review-for { font-size: 0.83rem; color: var(--muted); }
+    .review-for strong { color: var(--text); font-weight: 600; }
+
+    /* ── Layout ── */
+    .main {
+      max-width: 860px; width: 100%;
+      margin: 2rem auto; padding: 0 1.25rem 4rem;
+      display: flex; flex-direction: column; gap: 1.1rem;
+    }
+
+    /* ── Preview card ── */
+    .preview-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.05);
+    }
+    .preview-body {
+      min-height: 380px; background: #f1f5f9;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .preview-body img    { max-width: 100%; max-height: 580px; object-fit: contain; display: block; }
+    .preview-body embed  { display: block; }
+    .preview-body video  { max-width: 100%; max-height: 540px; display: block; }
+    .no-preview {
+      display: flex; flex-direction: column; align-items: center; gap: 0.6rem;
+      color: var(--muted); padding: 4rem 2rem; text-align: center;
+    }
+    .no-preview svg { width: 44px; height: 44px; opacity: 0.3; }
+    .no-preview small { font-size: 0.78rem; }
+    .preview-footer {
+      padding: 0.85rem 1.25rem; border-top: 1px solid var(--border);
+      display: flex; align-items: center; gap: 0.75rem;
+    }
+    .pf-name { font-size: 0.875rem; font-weight: 600; }
+    .pf-date { font-size: 0.78rem; color: var(--muted); margin-left: auto; }
+
+    /* ── Badge ── */
+    .badge {
+      display: inline-flex; align-items: center;
+      padding: 0.16rem 0.52rem; border-radius: 20px;
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase; border: 1px solid transparent; white-space: nowrap;
+    }
+    .badge-pending           { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+    .badge-approved          { background: var(--green-bg); color: var(--green); border-color: var(--green-border); }
+    .badge-rejected          { background: var(--red-bg);   color: var(--red);   border-color: var(--red-border); }
+    .badge-changes_requested { background: var(--amber-bg); color: var(--amber); border-color: var(--amber-border); }
+
+    /* ── Previous feedback ── */
+    .feedback-card {
+      background: var(--amber-bg); border: 1px solid var(--amber-border);
+      border-radius: var(--radius); padding: 1rem 1.25rem;
+    }
+    .feedback-label {
+      font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--amber); margin-bottom: 0.4rem;
+    }
+    .feedback-card p { font-size: 0.9rem; color: #92400e; }
+
+    /* ── Clickable timeline bar ── */
+    .video-timeline-section {
+      padding: 0.85rem 1.25rem 0.6rem;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .ct-track-wrap {
+      position: relative; height: 32px;
+      display: flex; align-items: center;
+    }
+    .ct-track {
+      position: relative; width: 100%; height: 8px;
+      background: #e2e8f0; border-radius: 99px;
+      cursor: pointer; overflow: visible;
+    }
+    .ct-track:hover { background: #cbd5e1; }
+    .ct-fill {
+      position: absolute; left: 0; top: 0; bottom: 0;
+      background: var(--accent); border-radius: 99px;
+      pointer-events: none;
+    }
+    .ct-thumb {
+      position: absolute; top: 50%; width: 14px; height: 14px;
+      background: var(--accent); border: 2px solid #fff;
+      border-radius: 50%; transform: translate(-50%, -50%);
+      box-shadow: 0 1px 4px rgba(0,0,0,.2);
+      pointer-events: none; transition: transform 0.1s;
+    }
+    .ct-track:hover .ct-thumb { transform: translate(-50%, -50%) scale(1.25); }
+    .ct-marker-dot {
+      position: absolute; top: 50%; width: 10px; height: 10px;
+      background: var(--amber); border: 2px solid #fff;
+      border-radius: 50%; transform: translate(-50%, -50%);
+      pointer-events: none; box-shadow: 0 1px 3px rgba(0,0,0,.2);
+    }
+    .ct-hint {
+      font-size: 0.72rem; color: var(--muted);
+      text-align: center; margin-top: 0.35rem;
+    }
+
+    /* ── Video timestamp comments ── */
+    .video-comment-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 1px 3px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.05);
+      padding: 1.25rem 1.5rem;
+    }
+    .vc-header { display: flex; align-items: center; justify-content: space-between; }
+    .vc-label {
+      font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--muted);
+    }
+    .btn-add-ts {
+      padding: 0.38rem 0.85rem; border-radius: 8px;
+      border: 1.5px solid var(--amber-border);
+      background: var(--amber-bg); color: var(--amber);
+      font-family: inherit; font-size: 0.82rem; font-weight: 600;
+      cursor: pointer; display: inline-flex; align-items: center; gap: 0.35rem;
+      transition: background 0.12s, color 0.12s;
+    }
+    .btn-add-ts:hover { background: var(--amber); color: #fff; border-color: #d97706; }
+    .ts-input-area {
+      display: none; margin-top: 1rem; padding: 1rem;
+      background: var(--amber-bg); border: 1px solid var(--amber-border); border-radius: 9px;
+    }
+    .ts-input-at { font-size: 0.82rem; color: var(--amber); font-weight: 600; margin-bottom: 0.5rem; }
+    .ts-input-area textarea {
+      width: 100%; min-height: 68px; padding: 0.65rem 0.85rem;
+      border: 1.5px solid var(--amber-border); border-radius: 8px;
+      font-family: inherit; font-size: 0.9rem; color: var(--text);
+      background: var(--surface); resize: none; outline: none;
+    }
+    .ts-input-area textarea:focus { border-color: var(--amber); }
+    .ts-input-footer { margin-top: 0.5rem; display: flex; gap: 0.5rem; align-items: center; }
+    .ts-add-btn {
+      padding: 0.38rem 1rem; border: none; border-radius: 7px;
+      background: var(--amber); color: #fff;
+      font-family: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+    }
+    .ts-cancel-btn {
+      padding: 0.38rem 0.85rem; border: 1px solid var(--border); border-radius: 7px;
+      background: none; color: var(--muted); font-family: inherit; font-size: 0.85rem; cursor: pointer;
+    }
+    .ts-hint { font-size: 0.74rem; color: var(--muted); }
+    .ts-list { margin-top: 1rem; display: flex; flex-direction: column; gap: 0.4rem; }
+    .ts-item {
+      display: flex; align-items: flex-start; gap: 0.6rem;
+      background: var(--amber-bg); border: 1px solid var(--amber-border);
+      border-radius: 8px; padding: 0.55rem 0.75rem;
+    }
+    .ts-badge {
+      flex-shrink: 0; padding: 0.12rem 0.45rem; border-radius: 9px;
+      background: var(--amber); color: #fff;
+      font-size: 0.68rem; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap;
+    }
+    .ts-item-text { flex: 1; font-size: 0.875rem; color: #92400e; line-height: 1.45; word-break: break-word; }
+    .ts-remove {
+      flex-shrink: 0; background: none; border: none;
+      color: #d97706; font-size: 0.75rem; cursor: pointer; text-decoration: underline;
+    }
+    .ts-remove:hover { color: var(--red); }
+    .ts-empty { font-size: 0.82rem; color: var(--muted); font-style: italic; margin-top: 0.5rem; }
+
+    /* ── Actions card ── */
+    .actions-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 1px 3px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.05);
+      padding: 1.5rem;
+    }
+    .actions-label {
+      font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--muted); margin-bottom: 1.1rem;
+    }
+    .action-row {
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem;
+    }
+    .action-btn {
+      width: 100%; padding: 0.85rem 1rem;
+      border-radius: 9px; border: 1.5px solid transparent;
+      font-family: inherit; font-size: 0.875rem; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+      transition: opacity 0.12s, transform 0.08s, box-shadow 0.12s;
+    }
+    .action-btn:hover  { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.1); }
+    .action-btn:active { transform: translateY(0); box-shadow: none; }
+    .decided-buttons   { opacity: 0.35; pointer-events: none; }
+
+    .btn-approve {
+      background: var(--green-bg); color: var(--green); border-color: var(--green-border);
+    }
+    .btn-approve.open { background: var(--green); color: #fff; border-color: #059669; }
+    .btn-changes {
+      background: var(--amber-bg); color: var(--amber); border-color: var(--amber-border);
+    }
+    .btn-changes.open { background: var(--amber); color: #fff; border-color: #d97706; }
+    .btn-reject {
+      background: var(--red-bg); color: var(--red); border-color: var(--red-border);
+    }
+    .btn-reject.open { background: var(--red); color: #fff; border-color: #dc2626; }
+
+    /* ── Panels ── */
+    .panel { display: none; margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
+    .panel.open { display: block; }
+    .panel-label { font-size: 0.82rem; font-weight: 600; color: var(--muted); margin-bottom: 0.6rem; }
+    .panel textarea {
+      width: 100%; min-height: 96px; padding: 0.75rem 1rem;
+      border: 1.5px solid var(--border); border-radius: 9px;
+      font-family: inherit; font-size: 0.9rem; color: var(--text);
+      background: var(--bg); resize: vertical; outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .panel textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99,102,241,.1); }
+    .panel-reject textarea:focus { border-color: var(--red); box-shadow: 0 0 0 3px rgba(239,68,68,.1); }
+    .panel-footer { margin-top: 0.75rem; display: flex; align-items: center; gap: 0.75rem; }
+    .panel-submit {
+      padding: 0.55rem 1.5rem; border: none; border-radius: 8px;
+      font-family: inherit; font-size: 0.875rem; font-weight: 700;
+      cursor: pointer; transition: opacity 0.12s;
+    }
+    .panel-submit:hover { opacity: 0.9; }
+    .panel-submit-approve  { background: var(--green); color: #fff; }
+    .panel-submit-changes  { background: var(--amber); color: #fff; }
+    .panel-submit-reject   { background: var(--red);   color: #fff; }
+    .panel-hint { font-size: 0.8rem; color: var(--muted); }
+
+    /* ── Decided banner ── */
+    .decided-banner {
+      margin-top: 1.25rem; padding: 1rem 1.25rem;
+      border-radius: 9px; font-size: 0.9rem; font-weight: 600;
+      text-align: center; border: 1px solid transparent;
+    }
+    .decided-approved { background: var(--green-bg); color: var(--green); border-color: var(--green-border); }
+    .decided-rejected { background: var(--red-bg);   color: var(--red);   border-color: var(--red-border); }
+    .decided-changes  { background: var(--amber-bg); color: var(--amber); border-color: var(--amber-border); }
+
+    @media (max-width: 540px) {
+      .action-row { grid-template-columns: 1fr; }
+      .header { padding: 0 1rem; }
+      .review-for { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <span class="brand">
+      <span class="brand-dot"></span>Review Portal
+    </span>
+    <span class="review-for">
+      Review for <strong>{{ submission.client.name if submission.client else 'Client' }}</strong>
+    </span>
+  </header>
+
+  <main class="main">
+
+    {# ── Preview ── #}
+    <div class="preview-card">
+      <div class="preview-body">
+        {% if submission.watermarked_path %}
+          {% set src = url_for('serve_upload', filename=submission.watermarked_path) %}
+          {% if submission.file_type.startswith('image/') %}
+            <img src="{{ src }}" alt="{{ submission.filename }}" />
+          {% elif submission.file_type == 'application/pdf' %}
+            <embed src="{{ src }}" type="application/pdf" style="width:100%;height:600px;display:block;" />
+          {% elif submission.file_type.startswith('video/') %}
+            <video id="review-video" controls>
+              <source src="{{ src }}" type="{{ submission.file_type }}" />
+            </video>
+          {% else %}
+            <div class="no-preview">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+              <span>No preview for this file type</span>
+              <small>{{ submission.file_type }}</small>
+            </div>
+          {% endif %}
+        {% else %}
+          <div class="no-preview">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            <span>No preview available</span>
+            <small>{{ submission.file_type }}</small>
+          </div>
+        {% endif %}
+      </div>
+      {% if submission.file_type.startswith('video/') and submission.watermarked_path and submission.status == 'pending' %}
+      <div class="video-timeline-section">
+        <div class="ct-track-wrap">
+          <div class="ct-track" id="ct-track">
+            <div class="ct-fill"  id="ct-fill"  style="width:0%"></div>
+            <div class="ct-thumb" id="ct-thumb" style="left:0%"></div>
+            <div id="ct-markers"></div>
+          </div>
+        </div>
+        <div class="ct-hint">Click anywhere on the bar to seek &amp; pin a note at that moment</div>
+      </div>
+      {% endif %}
+      <div class="preview-footer">
+        <span class="pf-name">{{ submission.filename }}</span>
+        <span class="badge badge-{{ submission.status }}">{{ submission.status | replace('_', ' ') }}</span>
+        <span class="pf-date">{{ submission.created_at.strftime('%b %d, %Y') }}</span>
+      </div>
+    </div>
+
+    {# ── Video timestamp UI ── #}
+    {% if submission.file_type.startswith('video/') and submission.status == 'pending' %}
+    <div class="video-comment-card">
+      <div class="vc-header">
+        <span class="vc-label">Timestamped feedback</span>
+        <button type="button" class="btn-add-ts" onclick="captureTimestamp()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/>
+            <line x1="8" y1="12" x2="16" y2="12"/>
+          </svg>
+          Add comment here
+        </button>
+      </div>
+      <div class="ts-input-area" id="ts-input-area">
+        <input type="hidden" id="captured-secs" value="0" />
+        <div class="ts-input-at">At <strong id="captured-time-display">0:00</strong> in the video</div>
+        <textarea id="new-ts-text" placeholder="Describe the issue at this moment…"></textarea>
+        <div class="ts-input-footer">
+          <button type="button" class="ts-add-btn" onclick="confirmTsComment()">Add</button>
+          <button type="button" class="ts-cancel-btn" onclick="cancelTsComment()">Cancel</button>
+          <span class="ts-hint">Ctrl+Enter to add</span>
+        </div>
+      </div>
+      <div class="ts-list" id="ts-list">
+        <p class="ts-empty" id="ts-empty">Pause the video and click "Add comment here" to pin feedback to a moment.</p>
+      </div>
+    </div>
+    {% endif %}
+
+    {# ── Team note ── #}
+    {% if submission.team_note %}
+    <div class="feedback-card" style="background:var(--accent-bg); border-color:var(--accent-border);">
+      <div class="feedback-label" style="color:var(--accent)">Note from the team</div>
+      <p style="color:#3730a3; white-space:pre-wrap">{{ submission.team_note }}</p>
+    </div>
+    {% endif %}
+
+    {# ── Previous feedback ── #}
+    {% if submission.client_comment %}
+    <div class="feedback-card">
+      <div class="feedback-label">Previous feedback</div>
+      <p>{{ submission.client_comment }}</p>
+    </div>
+    {% endif %}
+
+    {# ── Actions ── #}
+    <div class="actions-card">
+      <div class="actions-label">Your Decision</div>
+
+      <div class="action-row {{ 'decided-buttons' if submission.status != 'pending' }}">
+        <button type="button" class="action-btn btn-approve" id="btn-approve" onclick="toggle('approve')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          Approve
+        </button>
+        <button type="button" class="action-btn btn-changes" id="btn-changes" onclick="toggle('changes')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.1"/>
+          </svg>
+          Request Changes
+        </button>
+        <button type="button" class="action-btn btn-reject" id="btn-reject" onclick="toggle('reject')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+          Reject
+        </button>
+      </div>
+
+      {# Approve panel #}
+      <div class="panel" id="panel-approve">
+        <form id="form-approve" method="POST" action="{{ url_for('review.decide', token=submission.review_token) }}">
+          <input type="hidden" name="status" value="approved" />
+          {% if submission.file_type.startswith('video/') %}
+          <div class="panel-label">Optional notes (timestamped comments above will be included)</div>
+          <textarea name="comment" id="ta-approve" placeholder="Any additional notes for the team…"></textarea>
+          {% endif %}
+          <div class="panel-footer">
+            <button type="submit" class="panel-submit panel-submit-approve">Confirm Approval</button>
+            <span class="panel-hint" id="approve-ts-hint"></span>
+          </div>
+        </form>
+      </div>
+
+      {# Changes panel #}
+      <div class="panel" id="panel-changes">
+        <form id="form-changes" method="POST" action="{{ url_for('review.decide', token=submission.review_token) }}">
+          <input type="hidden" name="status" value="changes_requested" />
+          <div class="panel-label">What needs to change?</div>
+          <textarea name="comment" id="ta-changes" placeholder="Describe the changes you'd like made…"></textarea>
+          <div id="changes-error" style="display:none; margin-top:0.5rem; font-size:0.82rem; color:var(--red);">
+            Please add a comment or at least one timestamped note before sending.
+          </div>
+          <div class="panel-footer">
+            <button type="submit" class="panel-submit panel-submit-changes">Send Feedback</button>
+            <span class="panel-hint">The team will be notified.</span>
+          </div>
+        </form>
+      </div>
+
+      {# Reject panel #}
+      <div class="panel panel-reject" id="panel-reject">
+        <form id="form-reject" method="POST" action="{{ url_for('review.decide', token=submission.review_token) }}">
+          <input type="hidden" name="status" value="rejected" />
+          <div class="panel-label">Reason (optional)</div>
+          <textarea name="comment" id="ta-reject" placeholder="Let us know why this is being rejected…"
+                    style="border-color:var(--red-border)"></textarea>
+          <div class="panel-footer">
+            <button type="submit" class="panel-submit panel-submit-reject">Confirm Reject</button>
+          </div>
+        </form>
+      </div>
+
+      {# Already decided ── #}
+      {% if submission.status != 'pending' %}
+        <div class="decided-banner
+          {% if submission.status == 'approved' %}decided-approved
+          {% elif submission.status == 'rejected' %}decided-rejected
+          {% else %}decided-changes{% endif %}">
+          {% if submission.status == 'approved' %}✓ You approved this content.
+          {% elif submission.status == 'rejected' %}✕ This content was rejected.
+          {% else %}↺ Changes requested — the team has been notified.{% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </main>
+
+  <script>
+    /* ── Timestamped video comments ── */
+    var _tsComments = [];
+    function _fmtTime(s) {
+      var m = Math.floor(s / 60), sec = Math.floor(s % 60);
+      return m + ':' + (sec < 10 ? '0' : '') + sec;
+    }
+    function _esc(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function captureTimestamp() {
+      var v = document.getElementById('review-video'); if (!v) return;
+      v.pause();
+      document.getElementById('captured-secs').value = v.currentTime;
+      document.getElementById('captured-time-display').textContent = _fmtTime(v.currentTime);
+      document.getElementById('ts-input-area').style.display = 'block';
+      document.getElementById('new-ts-text').focus();
+    }
+    function cancelTsComment() {
+      document.getElementById('ts-input-area').style.display = 'none';
+      document.getElementById('new-ts-text').value = '';
+    }
+    function confirmTsComment() {
+      var text = document.getElementById('new-ts-text').value.trim();
+      if (!text) { document.getElementById('new-ts-text').focus(); return; }
+      var secs = parseFloat(document.getElementById('captured-secs').value) || 0;
+      _tsComments.push({ secs: secs, text: text });
+      _tsComments.sort(function(a, b) { return a.secs - b.secs; });
+      _renderTs(); _syncInputs(); cancelTsComment();
+    }
+    function removeTsComment(i) { _tsComments.splice(i, 1); _renderTs(); _syncInputs(); }
+    function _renderTs() {
+      var list = document.getElementById('ts-list');
+      var empty = document.getElementById('ts-empty');
+      if (!_tsComments.length) { list.innerHTML = ''; if (empty) list.appendChild(empty); return; }
+      var html = '';
+      _tsComments.forEach(function(c, i) {
+        html += '<div class="ts-item"><span class="ts-badge">' + _fmtTime(c.secs) + '</span>'
+              + '<span class="ts-item-text">' + _esc(c.text) + '</span>'
+              + '<button type="button" class="ts-remove" onclick="removeTsComment(' + i + ')">Remove</button></div>';
+      });
+      list.innerHTML = html;
+      if (window._updateTimelineMarkers) window._updateTimelineMarkers();
+    }
+    function _syncInputs() {
+      ['form-approve', 'form-changes', 'form-reject'].forEach(function(fid) {
+        var form = document.getElementById(fid); if (!form) return;
+        form.querySelectorAll('input[data-ts]').forEach(function(el) { el.remove(); });
+        _tsComments.forEach(function(c) {
+          var s = document.createElement('input'); s.type='hidden'; s.name='ts_seconds[]'; s.value=c.secs; s.dataset.ts='1'; form.appendChild(s);
+          var t = document.createElement('input'); t.type='hidden'; t.name='ts_texts[]';   t.value=c.text; t.dataset.ts='1'; form.appendChild(t);
+        });
+      });
+      var hint = document.getElementById('approve-ts-hint');
+      if (hint) hint.textContent = _tsComments.length ? _tsComments.length + ' timestamped note' + (_tsComments.length > 1 ? 's' : '') + ' will be included.' : '';
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+      var ta = document.getElementById('new-ts-text');
+      if (ta) ta.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); confirmTsComment(); }
+        if (e.key === 'Escape') cancelTsComment();
+      });
+
+      var formChanges = document.getElementById('form-changes');
+      if (formChanges) formChanges.addEventListener('submit', function(e) {
+        var hasComment = document.getElementById('ta-changes').value.trim().length > 0;
+        var hasTs      = _tsComments.length > 0;
+        var errEl      = document.getElementById('changes-error');
+        if (!hasComment && !hasTs) {
+          e.preventDefault();
+          errEl.style.display = 'block';
+          document.getElementById('ta-changes').focus();
+        } else {
+          errEl.style.display = 'none';
+        }
+      });
+    });
+
+    /* ── Clickable timeline ── */
+    (function() {
+      var track = document.getElementById('ct-track');
+      var fill  = document.getElementById('ct-fill');
+      var thumb = document.getElementById('ct-thumb');
+      var video = document.getElementById('review-video');
+      if (!track || !video) return;
+
+      function _pctFromEvent(e) {
+        var rect = track.getBoundingClientRect();
+        return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      }
+      function _updateBar() {
+        if (!video.duration) return;
+        var pct = (video.currentTime / video.duration * 100).toFixed(2) + '%';
+        fill.style.width  = pct;
+        thumb.style.left  = pct;
+      }
+      function _updateMarkers() {
+        var m = document.getElementById('ct-markers'); if (!m) return;
+        m.innerHTML = '';
+        if (!video.duration) return;
+        _tsComments.forEach(function(c) {
+          var dot = document.createElement('div');
+          dot.className = 'ct-marker-dot';
+          dot.style.left = (c.secs / video.duration * 100).toFixed(2) + '%';
+          m.appendChild(dot);
+        });
+      }
+
+      video.addEventListener('timeupdate', _updateBar);
+      video.addEventListener('loadedmetadata', function() { _updateBar(); _updateMarkers(); });
+
+      track.addEventListener('click', function(e) {
+        if (!video.duration) return;
+        var pct = _pctFromEvent(e);
+        video.currentTime = pct * video.duration;
+        video.pause();
+        document.getElementById('captured-secs').value = video.currentTime;
+        document.getElementById('captured-time-display').textContent = _fmtTime(video.currentTime);
+        document.getElementById('ts-input-area').style.display = 'block';
+        document.getElementById('new-ts-text').focus();
+      });
+
+      /* Expose so _renderTs can call it */
+      window._updateTimelineMarkers = _updateMarkers;
+    })();
+
+    /* ── Panel toggle ── */
+    function toggle(which) {
+      var panels = { approve: 'panel-approve', changes: 'panel-changes', reject: 'panel-reject' };
+      var btns   = { approve: 'btn-approve',   changes: 'btn-changes',   reject: 'btn-reject'   };
+      var tas    = {                            changes: 'ta-changes',     reject: 'ta-reject'    };
+      Object.keys(panels).forEach(function(key) {
+        var panel = document.getElementById(panels[key]);
+        var btn   = document.getElementById(btns[key]);
+        if (key === which) {
+          var opening = !panel.classList.contains('open');
+          panel.classList.toggle('open', opening);
+          btn.classList.toggle('open', opening);
+          if (opening && tas[key]) document.getElementById(tas[key]).focus();
+        } else {
+          panel.classList.remove('open');
+          btn.classList.remove('open');
+        }
+      });
+    }
+  </script>
+</body>
+</html>

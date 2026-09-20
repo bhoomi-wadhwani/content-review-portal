@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}{{ client.name }} — Review Portal{% endblock %}
+
+{% block head %}
+<style>
+  .detail-wrap { max-width: 900px; margin: 0 auto; }
+
+  /* ── Stats row ── */
+  .client-stats {
+    display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 2rem;
+  }
+  .cs-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 0.85rem 1.25rem; min-width: 110px;
+    display: flex; flex-direction: column; gap: 0.15rem;
+  }
+  .cs-count { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.04em; }
+  .cs-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+              letter-spacing: 0.05em; color: var(--muted); }
+
+  /* ── Table ── */
+  .table-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.06);
+  }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    padding: 0.7rem 1.1rem; text-align: left;
+    font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--muted);
+    background: var(--bg); border-bottom: 1px solid var(--border);
+  }
+  tbody td {
+    padding: 0.85rem 1.1rem; font-size: 0.875rem;
+    border-bottom: 1px solid var(--border); vertical-align: middle;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: #f8fafc; cursor: pointer; }
+  .sub-name { font-weight: 600; color: var(--text); }
+  .sub-type { font-size: 0.75rem; color: var(--muted); margin-top: 0.1rem; }
+  .empty-state { text-align: center; padding: 3rem 1rem;
+                 color: var(--muted); font-size: 0.875rem; font-style: italic; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="detail-wrap">
+  <div class="page-header">
+    <h1 class="page-title">{{ client.name }}</h1>
+    <a href="{{ url_for('clients.list_clients') }}" class="btn btn-outline">← Clients</a>
+  </div>
+
+  <p style="font-size:0.875rem; color:var(--muted); margin-bottom:1.5rem;">
+    <a href="mailto:{{ client.email }}" style="color:var(--accent)">{{ client.email }}</a>
+    &nbsp;·&nbsp; Client since {{ client.created_at.strftime('%b %d, %Y') }}
+  </p>
+
+  {# ── Stats ── #}
+  {% set n_pending  = submissions | selectattr('status', 'equalto', 'pending')            | list | length %}
+  {% set n_changes  = submissions | selectattr('status', 'equalto', 'changes_requested')  | list | length %}
+  {% set n_approved = submissions | selectattr('status', 'equalto', 'approved')           | list | length %}
+  {% set n_rejected = submissions | selectattr('status', 'equalto', 'rejected')           | list | length %}
+  <div class="client-stats">
+    <div class="cs-card">
+      <span class="cs-count">{{ submissions | length }}</span>
+      <span class="cs-label">Total</span>
+    </div>
+    <div class="cs-card">
+      <span class="cs-count" style="color:#475569">{{ n_pending }}</span>
+      <span class="cs-label">Pending</span>
+    </div>
+    <div class="cs-card">
+      <span class="cs-count" style="color:var(--amber)">{{ n_changes }}</span>
+      <span class="cs-label">Changes</span>
+    </div>
+    <div class="cs-card">
+      <span class="cs-count" style="color:var(--green)">{{ n_approved }}</span>
+      <span class="cs-label">Approved</span>
+    </div>
+    <div class="cs-card">
+      <span class="cs-count" style="color:var(--red)">{{ n_rejected }}</span>
+      <span class="cs-label">Rejected</span>
+    </div>
+  </div>
+
+  {# ── Submissions table ── #}
+  <div class="table-card">
+    <table>
+      <thead>
+        <tr>
+          <th>File</th>
+          <th>Status</th>
+          <th>Submitted</th>
+          <th>Feedback</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if submissions %}
+          {% for s in submissions %}
+          <tr onclick="window.location='{{ url_for('review.review_internal', token=s.review_token) }}'">
+            <td>
+              <div class="sub-name">{{ s.filename }}</div>
+              <div class="sub-type">{{ s.file_type }}</div>
+            </td>
+            <td>
+              <span class="badge badge-{{ s.status }}">{{ s.status | replace('_', ' ') }}</span>
+            </td>
+            <td style="color:var(--muted); font-size:0.8rem; white-space:nowrap">
+              {{ s.created_at.strftime('%b %d, %Y') }}<br/>
+              <span style="font-size:0.73rem">{{ s.created_at | timeago }}</span>
+            </td>
+            <td style="font-size:0.8rem; color:var(--muted); max-width:220px;">
+              {% if s.file_type.startswith('video/') and s.video_comments %}
+                {{ s.video_comments | length }} timestamped note{{ 's' if s.video_comments | length != 1 }}
+              {% elif s.client_comment %}
+                <span style="display:-webkit-box;-webkit-line-clamp:2;
+                             -webkit-box-orient:vertical;overflow:hidden;">
+                  {{ s.client_comment }}
+                </span>
+              {% else %}
+                <span style="font-style:italic">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="4" class="empty-state">No submissions yet for this client.</td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

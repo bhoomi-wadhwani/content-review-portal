@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Review Portal{% endblock %}
+
+{% block head %}
+<style>
+  /* ── Stats bar ── */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.875rem;
+    margin-bottom: 2.25rem;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1.1rem 1.25rem;
+    display: flex; align-items: center; gap: 0.9rem;
+  }
+  .stat-icon {
+    width: 36px; height: 36px; border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .stat-icon-pending  { background: #f1f5f9; }
+  .stat-icon-changes  { background: var(--amber-bg); }
+  .stat-icon-approved { background: var(--green-bg); }
+  .stat-icon-rejected { background: var(--red-bg); }
+  .stat-count {
+    font-size: 1.6rem; font-weight: 800;
+    letter-spacing: -0.04em; line-height: 1; color: var(--text);
+  }
+  .stat-label {
+    font-size: 0.72rem; color: var(--muted);
+    font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+    margin-top: 0.1rem;
+  }
+
+  /* ── Section ── */
+  .section { margin-bottom: 2.75rem; }
+  .section-header {
+    display: flex; align-items: center; gap: 0.65rem;
+    margin-bottom: 1rem; padding-bottom: 0.85rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot-pending  { background: #94a3b8; }
+  .dot-changes  { background: var(--amber); }
+  .dot-approved { background: var(--green); }
+  .dot-rejected { background: var(--red); }
+  .section-title {
+    font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.07em; color: var(--text); flex: 1;
+  }
+  .section-pill {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 20px; padding: 0.1rem 0.6rem;
+    font-size: 0.72rem; font-weight: 600; color: var(--muted);
+  }
+
+  /* ── Card grid ── */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(228px, 1fr));
+    gap: 1rem;
+  }
+
+  /* ── Submission card (entire card is a link) ── */
+  .sub-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    text-decoration: none; color: inherit;
+    transition: box-shadow 0.15s, transform 0.12s, border-color 0.15s;
+  }
+  .sub-card:hover {
+    box-shadow: 0 8px 28px rgba(0,0,0,.09);
+    transform: translateY(-2px);
+    border-color: #c7d2fe;
+  }
+
+  /* ── Thumbnail ── */
+  .thumb {
+    width: 100%; height: 152px;
+    background: #f1f5f9;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden; flex-shrink: 0;
+  }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .thumb-icon {
+    display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
+  }
+  .thumb-icon svg { width: 34px; height: 34px; }
+  .thumb-type {
+    font-size: 0.62rem; font-weight: 800; letter-spacing: 0.08em;
+    text-transform: uppercase; color: #94a3b8;
+  }
+
+  /* ── Card body ── */
+  .card-body {
+    padding: 0.9rem 1rem 1rem;
+    flex: 1; display: flex; flex-direction: column; gap: 0.2rem;
+  }
+  .card-client {
+    font-size: 0.9rem; font-weight: 700; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .card-filename {
+    font-size: 0.74rem; color: var(--muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .card-meta {
+    display: flex; align-items: center; gap: 0.5rem; margin-top: 0.55rem;
+  }
+  .card-time { font-size: 0.7rem; color: #94a3b8; margin-left: auto; }
+
+  /* ── Feedback snippets ── */
+  .ts-feedback-list { margin-top: 0.55rem; display: flex; flex-direction: column; gap: 0.3rem; }
+  .ts-fb-item { display: flex; align-items: flex-start; gap: 0.4rem; }
+  .ts-marker {
+    flex-shrink: 0; padding: 0.1rem 0.38rem; border-radius: 8px;
+    background: var(--amber); color: #fff;
+    font-size: 0.65rem; font-weight: 700; font-variant-numeric: tabular-nums;
+    white-space: nowrap; margin-top: 2px;
+  }
+  .ts-fb-text {
+    font-size: 0.74rem; color: #92400e; line-height: 1.4;
+    display: -webkit-box; -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .change-comment {
+    margin-top: 0.45rem; font-size: 0.74rem; color: #92400e;
+    background: var(--amber-bg); border-left: 2px solid var(--amber);
+    padding: 0.3rem 0.5rem; border-radius: 0 5px 5px 0;
+    display: -webkit-box; -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical; overflow: hidden;
+  }
+
+  /* ── Open link row ── */
+  .card-open {
+    margin-top: auto; padding-top: 0.7rem;
+    font-size: 0.78rem; font-weight: 600; color: var(--accent);
+    display: inline-flex; align-items: center; gap: 0.25rem;
+  }
+
+  /* ── Empty state ── */
+  .empty {
+    font-size: 0.85rem; color: #94a3b8;
+    padding: 1rem 0; font-style: italic;
+  }
+
+  @media (max-width: 640px) {
+    .stats-bar { grid-template-columns: 1fr 1fr; }
+    .grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 380px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+  <div class="page-header">
+    <h1 class="page-title">Dashboard</h1>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="flash flash-{{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  {# ── Stats bar ── #}
+  <div class="stats-bar">
+    <div class="stat-card">
+      <div class="stat-icon stat-icon-pending">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+      </div>
+      <div>
+        <div class="stat-count">{{ pending | length }}</div>
+        <div class="stat-label">Pending</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon stat-icon-changes">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
+          <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.1"/>
+        </svg>
+      </div>
+      <div>
+        <div class="stat-count">{{ changes | length }}</div>
+        <div class="stat-label">Changes</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon stat-icon-approved">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      </div>
+      <div>
+        <div class="stat-count">{{ approved | length }}</div>
+        <div class="stat-label">Approved</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon stat-icon-rejected">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </div>
+      <div>
+        <div class="stat-count">{{ rejected | length }}</div>
+        <div class="stat-label">Rejected</div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Card macro ── #}
+  {% macro sub_card(s) %}
+  <a class="sub-card" href="{{ url_for('review.review_internal', token=s.review_token) }}">
+    <div class="thumb">
+      {% if s.watermarked_path and s.file_type.startswith('image/') %}
+        <img src="{{ url_for('static', filename=s.watermarked_path) }}" alt="{{ s.filename }}" />
+      {% elif s.file_type == 'application/pdf' %}
+        <div class="thumb-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/>
+          </svg>
+          <span class="thumb-type">PDF</span>
+        </div>
+      {% elif s.file_type.startswith('video/') %}
+        <div class="thumb-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="1.5">
+            <rect x="2" y="4" width="20" height="16" rx="2.5"/>
+            <polygon points="10 9 15 12 10 15 10 9" fill="#6366f1" stroke="none"/>
+          </svg>
+          <span class="thumb-type">Video</span>
+        </div>
+      {% else %}
+        <div class="thumb-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+          </svg>
+          <span class="thumb-type">File</span>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="card-body">
+      <div class="card-client">{{ s.client.name if s.client else '—' }}</div>
+      <div class="card-filename" title="{{ s.filename }}">{{ s.filename }}</div>
+      <div class="card-meta">
+        <span class="badge badge-{{ s.status }}">{{ s.status | replace('_', ' ') }}</span>
+        <span class="card-time">{{ s.created_at | timeago }}</span>
+      </div>
+
+      {% if s.file_type.startswith('video/') and s.video_comments %}
+        <div class="ts-feedback-list">
+          {% for vc in s.video_comments | sort(attribute='timestamp_seconds') %}
+            {% set fb = parse_feedback(vc) %}
+            <div class="ts-fb-item">
+              <span class="ts-marker">{{ fb.timestamp }}</span>
+              <span class="ts-fb-text">{{ fb.text }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      {% elif s.client_comment %}
+        <div class="change-comment">{{ s.client_comment }}</div>
+      {% endif %}
+
+      <span class="card-open">
+        Open review
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+        </svg>
+      </span>
+    </div>
+  </a>
+  {% endmacro %}
+
+  {# ── Pending ── #}
+  <div class="section">
+    <div class="section-header">
+      <span class="section-dot dot-pending"></span>
+      <span class="section-title">Pending</span>
+      <span class="section-pill">{{ pending | length }}</span>
+    </div>
+    {% if pending %}
+      <div class="grid">{% for s in pending %}{{ sub_card(s) }}{% endfor %}</div>
+    {% else %}
+      <p class="empty">Nothing pending — all clear.</p>
+    {% endif %}
+  </div>
+
+  {# ── Changes Requested ── #}
+  <div class="section">
+    <div class="section-header">
+      <span class="section-dot dot-changes"></span>
+      <span class="section-title">Changes Requested</span>
+      <span class="section-pill">{{ changes | length }}</span>
+    </div>
+    {% if changes %}
+      <div class="grid">{% for s in changes %}{{ sub_card(s) }}{% endfor %}</div>
+    {% else %}
+      <p class="empty">No changes requested.</p>
+    {% endif %}
+  </div>
+
+  {# ── Approved ── #}
+  <div class="section">
+    <div class="section-header">
+      <span class="section-dot dot-approved"></span>
+      <span class="section-title">Approved</span>
+      <span class="section-pill">{{ approved | length }}</span>
+    </div>
+    {% if approved %}
+      <div class="grid">{% for s in approved %}{{ sub_card(s) }}{% endfor %}</div>
+    {% else %}
+      <p class="empty">No approved submissions yet.</p>
+    {% endif %}
+  </div>
+
+  {# ── Rejected ── #}
+  <div class="section">
+    <div class="section-header">
+      <span class="section-dot dot-rejected"></span>
+      <span class="section-title">Rejected</span>
+      <span class="section-pill">{{ rejected | length }}</span>
+    </div>
+    {% if rejected %}
+      <div class="grid">{% for s in rejected %}{{ sub_card(s) }}{% endfor %}</div>
+    {% else %}
+      <p class="empty">No rejected submissions.</p>
+    {% endif %}
+  </div>
+
+{% endblock %}

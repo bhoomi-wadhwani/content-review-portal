@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Review Portal{% endblock %}</title>
+  <style>
+    :root {
+      --bg:            #f8fafc;
+      --surface:       #ffffff;
+      --border:        #e2e8f0;
+      --text:          #0f172a;
+      --muted:         #64748b;
+      --accent:        #6366f1;
+      --accent-bg:     #eef2ff;
+      --accent-border: #c7d2fe;
+      --green:         #10b981; --green-bg: #ecfdf5; --green-border: #a7f3d0;
+      --amber:         #f59e0b; --amber-bg: #fffbeb; --amber-border: #fde68a;
+      --red:           #ef4444; --red-bg:   #fef2f2; --red-border:   #fecaca;
+      --radius:        10px;
+      --shadow:        0 1px 2px rgba(0,0,0,.04), 0 4px 12px rgba(0,0,0,.04);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    /* ── Nav ── */
+    .nav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      height: 54px;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .nav-brand {
+      font-weight: 800;
+      font-size: 0.88rem;
+      letter-spacing: -0.02em;
+      color: var(--accent);
+      text-decoration: none;
+      margin-right: 1.25rem;
+      display: flex; align-items: center; gap: 0.45rem;
+    }
+    .nav-brand-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--accent); display: inline-block;
+    }
+    .nav-links { display: flex; gap: 2px; }
+    .nav-link {
+      padding: 0.32rem 0.75rem;
+      border-radius: 7px;
+      font-size: 0.86rem;
+      font-weight: 500;
+      color: var(--muted);
+      text-decoration: none;
+      transition: background 0.1s, color 0.1s;
+    }
+    .nav-link:hover  { background: var(--bg); color: var(--text); }
+    .nav-link.active {
+      background: var(--accent-bg); color: var(--accent);
+      font-weight: 600; border: 1px solid var(--accent-border);
+    }
+
+    /* ── Page shell ── */
+    .page { max-width: 1140px; margin: 0 auto; padding: 2rem 1.75rem; }
+    .page-header {
+      display: flex; align-items: baseline; gap: 0.75rem;
+      margin-bottom: 1.75rem;
+    }
+    .page-title  { font-size: 1.35rem; font-weight: 800; letter-spacing: -0.03em; }
+
+    /* ── Badges ── */
+    .badge {
+      display: inline-flex; align-items: center;
+      padding: 0.16rem 0.52rem; border-radius: 20px;
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase; border: 1px solid transparent; white-space: nowrap;
+    }
+    .badge-pending           { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+    .badge-approved          { background: var(--green-bg); color: var(--green); border-color: var(--green-border); }
+    .badge-rejected          { background: var(--red-bg);   color: var(--red);   border-color: var(--red-border); }
+    .badge-changes_requested { background: var(--amber-bg); color: var(--amber); border-color: var(--amber-border); }
+
+    /* ── Flash messages ── */
+    .flash { padding: 0.75rem 1rem; border-radius: 9px; font-size: 0.875rem; margin-bottom: 1.25rem; border: 1px solid; }
+    .flash-success { background: var(--green-bg); color: #065f46; border-color: var(--green-border); }
+    .flash-warning { background: var(--amber-bg); color: #92400e; border-color: var(--amber-border); }
+    .flash-error   { background: var(--red-bg);   color: #991b1b; border-color: var(--red-border); }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    /* ── Form primitives ── */
+    label {
+      display: block; font-size: 0.78rem; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem;
+    }
+    input[type="text"], input[type="email"], select {
+      width: 100%; padding: 0.55rem 0.8rem;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      font-family: inherit; font-size: 0.9rem; color: var(--text);
+      background: var(--surface); outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    input[type="text"]:focus, input[type="email"]:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(99,102,241,.12);
+    }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 0.55rem 1.25rem; border-radius: 8px; border: 1.5px solid transparent;
+      font-family: inherit; font-size: 0.875rem; font-weight: 600;
+      cursor: pointer; text-decoration: none;
+      transition: opacity 0.12s, transform 0.08s, box-shadow 0.12s;
+    }
+    .btn:hover  { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.1); }
+    .btn:active { transform: translateY(0); box-shadow: none; }
+    .btn-primary { background: var(--accent); color: #fff; border-color: #4f46e5; }
+    .btn-outline { background: var(--surface); color: var(--text); border-color: var(--border); }
+    .btn-green   { background: var(--green);   color: #fff; border-color: #059669; }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <nav class="nav">
+    <a href="{{ url_for('upload.index') }}" class="nav-brand">
+      <span class="nav-brand-dot"></span>Review Portal
+    </a>
+    <div class="nav-links">
+      <a href="{{ url_for('upload.index') }}"
+         class="nav-link {{ 'active' if request.endpoint in ('upload.index', 'upload.upload_file', 'upload.success') }}">Upload</a>
+      <a href="{{ url_for('dashboard.dashboard') }}"
+         class="nav-link {{ 'active' if request.endpoint == 'dashboard.dashboard' }}">Dashboard</a>
+      <a href="{{ url_for('clients.list_clients') }}"
+         class="nav-link {{ 'active' if request.endpoint in ('clients.list_clients', 'clients.add_client') }}">Clients</a>
+    </div>
+  </nav>
+
+  <div class="page">
+    {% block content %}{% endblock %}
+  </div>
+</body>
+</html>
